@@ -1,0 +1,119 @@
+# SPDX-License-Identifier: MIT
+#
+# Integrated test orchestrator: runs BOTH the Python CPU benchmark suite
+# and the C++ SIMD correctness tests + micro-benchmarks on x86_64 and
+# aarch64 GitHub-hosted Linux runners, then aggregates everything into
+# a single pretty Markdown summary.
+name: all-tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    name: ${{ matrix.arch_label }} (${{ matrix.isa }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch_label: x86_64
+            isa: SSE
+          - runner: ubuntu-24.04-arm
+            arch_label: aarch64
+            isa: NEON
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show CPU info
+        run: |
+          uname -a
+          (head -n 30 /proc/cpuinfo) || true
+
+      # -----------------------------------------------------------------
+      # Python CPU benchmarks
+      # -----------------------------------------------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: pip install numpy
+
+      - name: Run Python benchmarks
+        run: python benchmark.py
+
+      # -----------------------------------------------------------------
+      # C++ SIMD: configure / build / test / benchmark
+      # -----------------------------------------------------------------
+      - name: Configure C++ SIMD project
+        run: cmake -S simd_compare -B simd_compare/build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build C++ SIMD project
+        run: cmake --build simd_compare/build --parallel
+
+      - name: Run C++ SIMD correctness tests
+        run: |
+          set -o pipefail
+          ctest --test-dir simd_compare/build --output-on-failure | tee simd_tests_${{ matrix.arch_label }}.log
+
+      - name: Run C++ SIMD benchmark
+        run: |
+          ./simd_compare/build/simd_bench --json simd_bench_${{ matrix.arch_label }}.json
+
+      # -----------------------------------------------------------------
+      # Collect everything into a single artifact per architecture.
+      # -----------------------------------------------------------------
+      - name: Collect results
+        run: |
+          mkdir -p artifact
+          cp benchmark_results_*.json artifact/ 2>/dev/null || true
+          cp simd_bench_${{ matrix.arch_label }}.json artifact/ 2>/dev/null || true
+          cp simd_tests_${{ matrix.arch_label }}.log  artifact/ 2>/dev/null || true
+          ls -l artifact
+
+      - name: Upload results artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-results-${{ matrix.arch_label }}
+          path: artifact/
+
+  summary:
+    name: Integrated Summary
+    needs: run
+    runs-on: ubuntu-latest
+    if: always()
+    permissions:
+      actions: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download x86_64 results
+        uses: actions/download-artifact@v4
+        with:
+          name: all-results-x86_64
+          path: results/x86_64
+        continue-on-error: true
+
+      - name: Download aarch64 results
+        uses: actions/download-artifact@v4
+        with:
+          name: all-results-aarch64
+          path: results/aarch64
+        continue-on-error: true
+
+      - name: Generate integrated summary
+        run: python3 scripts/generate_summary.py results "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
