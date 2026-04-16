@@ -1,0 +1,3 @@
+# Build outputs
+simd_compare/build/
+simd_compare/build-*/
