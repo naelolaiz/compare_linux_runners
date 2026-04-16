@@ -11,13 +11,13 @@ GitHub provides free ARM runners (`ubuntu-24.04-arm`) for **public repositories*
 | Benchmark | What it tests |
 |-----------|--------------|
 | `matrix_multiplication` | NumPy 1024×1024 double-precision matrix multiply (BLAS) |
-| `prime_sieve` | Sieve of Eratosthenes up to 5 000 000 (integer/memory throughput) |
+| `prime_sieve` | Sieve of Eratosthenes up to 5_000_000 (integer/memory throughput) |
 | `sha256_hashing` | SHA-256 over 200 MB of data (crypto / hash throughput) |
-| `fibonacci_memoized` | Recursive Fibonacci up to n=10 000 with `lru_cache` (function-call overhead) |
-| `list_sorting` | Sort 5 000 000 random floats with Python's Timsort |
-| `float_math_trig` | NumPy `sin`, `cos`, `tan` over 10 000 000 elements (SIMD / FPU throughput) |
+| `fibonacci_memoized` | Recursive Fibonacci up to n=10_000 with `lru_cache` (function-call overhead) |
+| `list_sorting` | Sort 5_000_000 random floats with Python's Timsort |
+| `float_math_trig` | NumPy `sin`, `cos`, `tan` over 10_000_000 elements (SIMD / FPU throughput) |
 | `zlib_compression` | zlib compress + decompress ~9 MB payload at level 6 |
-| `json_serialization` | `json.dumps` + `json.loads` on a 100 000-item list of dicts |
+| `json_serialization` | `json.dumps` + `json.loads` on a 100_000-item list of dicts |
 
 ## How to run locally
 

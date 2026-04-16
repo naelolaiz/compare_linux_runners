@@ -11,6 +11,8 @@ jobs:
   benchmark:
     name: Benchmark (${{ matrix.runner }})
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
     strategy:
       matrix:
         include:
@@ -44,6 +46,8 @@ jobs:
     name: Comparison Summary
     needs: benchmark
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
 
     steps:
       - name: Download x86_64 results
