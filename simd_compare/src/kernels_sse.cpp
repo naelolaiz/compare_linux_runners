@@ -55,7 +55,7 @@ void rgb_to_gray(std::span<const std::uint8_t> rgb, std::span<std::uint8_t> gray
     // (SSSE3) to deinterleave R/G/B into three 128-bit lanes with one
     // 16-bit value per pixel.
     const std::size_t block = 8;
-    const std::size_t vec_end = (npix >= 16) ? ((npix - 16) / block) * block : 0;
+    const std::size_t vec_end = (npix / block) * block;
 
     //   byte layout of 24 RGB bytes:
     //     R0 G0 B0 R1 G1 B1 R2 G2 B2 R3 G3 B3 R4 G4 B4 R5 G5 B5 R6 G6 B6 R7 G7 B7
@@ -92,8 +92,8 @@ void rgb_to_gray(std::span<const std::uint8_t> rgb, std::span<std::uint8_t> gray
     std::size_t i = 0;
     for (; i < vec_end; i += block)
     {
-        const __m128i lo = _mm_loadu_si128(reinterpret_cast<const __m128i*>(rgb.data() + 3 * i));
-        const __m128i hi = _mm_loadu_si128(reinterpret_cast<const __m128i*>(rgb.data() + 3 * i + 8));
+        const __m128i lo = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(rgb.data() + 3 * i));
+        const __m128i hi = _mm_loadu_si128(reinterpret_cast<const __m128i_u*>(rgb.data() + 3 * i + 8));
 
         // R/G/B as 8 lanes of 16-bit unsigned values.
         const __m128i R = _mm_or_si128(_mm_shuffle_epi8(lo, sR), _mm_shuffle_epi8(hi, sR2));
@@ -107,7 +107,7 @@ void rgb_to_gray(std::span<const std::uint8_t> rgb, std::span<std::uint8_t> gray
         y = _mm_srli_epi16(y, 8);
         // Pack 8 x u16 -> 8 x u8 (saturating to unsigned); values are always <=255.
         const __m128i packed = _mm_packus_epi16(y, _mm_setzero_si128());
-        _mm_storel_epi64(reinterpret_cast<__m128i*>(gray.data() + i), packed);
+        _mm_storel_epi64(reinterpret_cast<__m128i_u*>(gray.data() + i), packed);
     }
     // Tail: scalar fallback.
     for (; i < npix; ++i)

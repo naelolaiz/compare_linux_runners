@@ -4,7 +4,7 @@
 //
 // For each kernel we expose three implementations:
 //   * scalar  -- a portable plain-C++ baseline (always available),
-//   * sse     -- x86/x86_64 SSE/SSE2/SSE4.1 intrinsics (only on x86),
+//   * sse     -- x86/x86_64 SSE2/SSSE3 intrinsics (only on x86),
 //   * neon    -- AArch64/ARM NEON intrinsics (only on ARM with NEON).
 //
 // The `simd` namespace exposes `has_sse()` / `has_neon()` so callers can

@@ -22,7 +22,7 @@ target_compile_options(simd_kernels PRIVATE -Wall -Wextra -Wpedantic)
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|i[3-6]86)$")
     target_sources(simd_kernels PRIVATE src/kernels_sse.cpp)
     set_source_files_properties(src/kernels_sse.cpp PROPERTIES
-        COMPILE_OPTIONS "-msse4.1;-mssse3;-msse2")
+        COMPILE_OPTIONS "-mssse3;-msse2")
     target_compile_definitions(simd_kernels PUBLIC SIMD_COMPARE_HAVE_SSE=1)
     message(STATUS "simd_compare: building SSE kernels for ${CMAKE_SYSTEM_PROCESSOR}")
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")

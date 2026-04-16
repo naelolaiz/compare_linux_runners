@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <random>
+#include <string>
 #include <vector>
 
 namespace
