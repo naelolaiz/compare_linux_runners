@@ -1,12 +1,32 @@
 # compare_linux_runners
 
+Projects that exercise and compare the different Linux runners available
+on GitHub Actions — ARM (`aarch64`) vs Intel (`x86_64`), SSE vs NEON, etc.
+
+## Projects
+
+- **Python CPU benchmark** (this directory) — a suite of CPU-bound Python
+  benchmarks (NumPy BLAS, prime sieve, SHA-256, sorting, zlib, JSON, …)
+  run in parallel on `ubuntu-24.04` and `ubuntu-24.04-arm` to produce a
+  side-by-side comparison table. See below.
+- [`simd_compare/`](simd_compare/README.md) — modern **C++23** SIMD
+  kernels (audio gain, audio mix, RGB→gray) implemented with a scalar
+  baseline plus **SSE** (x86_64) and **NEON** (aarch64) intrinsics.
+  Includes a CMake build, correctness tests, a throughput micro-benchmark
+  and a GitHub Actions workflow that runs everything on both
+  `ubuntu-latest` and `ubuntu-24.04-arm` runners.
+
+---
+
+## Python CPU benchmark
+
 Compare CPU performance of GitHub-hosted **ARM (aarch64)** vs **Intel (x86_64)** Linux runners using a suite of CPU-bound Python benchmarks.
 
-## Why?
+### Why?
 
 GitHub provides free ARM runners (`ubuntu-24.04-arm`) for **public repositories** — no extra cost, no quota concerns. This project lets you see how ARM stacks up against Intel for common computational tasks right inside GitHub Actions.
 
-## Benchmarks
+### Benchmarks
 
 | Benchmark | What it tests |
 |-----------|--------------|
@@ -19,7 +39,7 @@ GitHub provides free ARM runners (`ubuntu-24.04-arm`) for **public repositories*
 | `zlib_compression` | zlib compress + decompress ~9 MB payload at level 6 |
 | `json_serialization` | `json.dumps` + `json.loads` on a 100_000-item list of dicts |
 
-## How to run locally
+### How to run locally
 
 ```bash
 pip install numpy
@@ -28,27 +48,27 @@ python benchmark.py
 
 Results are printed to stdout and also saved to `benchmark_results_<arch>.json`.
 
-## How to trigger the workflow
+### How to trigger the workflow
 
 1. Push a commit to `main`, open a pull request targeting `main`, or navigate to **Actions → ARM vs Intel Benchmark → Run workflow**.
 2. The `benchmark` job runs in parallel on both `ubuntu-24.04` (x86_64) and `ubuntu-24.04-arm` (aarch64).
 3. Each job uploads a `benchmark_results_<arch>.json` artifact.
 4. The `summary` job downloads both artifacts and writes a Markdown comparison table to the **job summary**.
 
-### Viewing results
+#### Viewing results
 
 - Open the workflow run on GitHub.
 - Click the **Comparison Summary** job.
 - Scroll down to the **job summary** pane to see the side-by-side table.
 - Raw JSON artifacts are available under **Artifacts** at the bottom of the run page.
 
-## ARM runners are free on public repos
+### ARM runners are free on public repos
 
 > GitHub-hosted ARM runners (`ubuntu-24.04-arm`, `ubuntu-22.04-arm`) are **free and unlimited on public repositories**.  
 > For private repositories they consume your included-minutes allotment and are then billed at standard rates.  
 > See the [GitHub Actions billing docs](https://docs.github.com/en/billing/reference/actions-minute-multipliers) for details.
 
-## Example comparison table
+### Example comparison table
 
 | Benchmark | x86_64 (s) | aarch64 (s) | Faster |
 |-----------|------------|-------------|--------|

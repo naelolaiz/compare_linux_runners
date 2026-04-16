@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: MIT
+#
+# Build, test, and benchmark the C++ SIMD comparison project on both
+# x86_64 (SSE) and arm64 (NEON) GitHub-hosted Linux runners. This is the
+# cross-architecture comparison the repo is named after.
+name: simd-compare
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'simd_compare/**'
+      - '.github/workflows/simd.yml'
+  pull_request:
+    paths:
+      - 'simd_compare/**'
+      - '.github/workflows/simd.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-bench:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            arch: x86_64
+            isa: SSE
+          - runner: ubuntu-24.04-arm
+            arch: aarch64
+            isa: NEON
+    runs-on: ${{ matrix.runner }}
+    name: ${{ matrix.arch }} (${{ matrix.isa }})
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show CPU info
+        run: |
+          uname -a
+          cat /proc/cpuinfo | head -n 30 || true
+
+      - name: Configure
+        run: cmake -S simd_compare -B simd_compare/build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build simd_compare/build --parallel
+
+      - name: Test
+        run: ctest --test-dir simd_compare/build --output-on-failure
+
+      - name: Benchmark
+        run: ./simd_compare/build/simd_bench
