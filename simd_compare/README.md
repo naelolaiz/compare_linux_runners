@@ -41,6 +41,14 @@ ctest --test-dir simd_compare/build --output-on-failure
 ./simd_compare/build/simd_bench
 ```
 
+Pass `--json <path>` to also write the benchmark results to a JSON file
+(used by the integrated `all-tests` workflow to build a cross-suite
+summary):
+
+```sh
+./simd_compare/build/simd_bench --json simd_bench.json
+```
+
 Expected output on an x86_64 machine (numbers obviously vary):
 
 ```

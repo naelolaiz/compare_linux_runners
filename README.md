@@ -16,6 +16,22 @@ on GitHub Actions — ARM (`aarch64`) vs Intel (`x86_64`), SSE vs NEON, etc.
   and a GitHub Actions workflow that runs everything on both
   `ubuntu-latest` and `ubuntu-24.04-arm` runners.
 
+### Integrated workflow — `all-tests`
+
+The [`all-tests`](.github/workflows/all_tests.yml) workflow **orchestrates
+both suites in a single pipeline** and emits one unified Markdown summary
+containing:
+
+1. C++ SIMD correctness test status per architecture,
+2. the Python CPU benchmark comparison table,
+3. a scalar x86_64 vs aarch64 C++ throughput table,
+4. an SSE vs NEON C++ throughput table.
+
+Open any run of the `all-tests` workflow and scroll to the **Integrated
+Summary** job — every result for every suite is rendered there side by
+side. The standalone `ARM vs Intel Benchmark` and `simd-compare`
+workflows are kept for lightweight per-area CI.
+
 ---
 
 ## Python CPU benchmark
