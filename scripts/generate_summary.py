@@ -24,12 +24,22 @@ from __future__ import annotations
 
 import glob
 import json
+import math
 import os
 import sys
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, TypedDict
 
 
 ARCHES: List[str] = ["x86_64", "aarch64"]
+
+
+class Scoreboard(TypedDict):
+    wins_x: int
+    wins_a: int
+    ties: int
+    total: int
+    geomean_ratio: float
+    details: List[Tuple[str, float, float]]
 
 
 # ---------------------------------------------------------------------------
@@ -257,18 +267,13 @@ def build_summary(results_root: str) -> str:
 def _compute_scoreboard(
     py_x: Dict[str, float], py_a: Dict[str, float],
     simd_x: Optional[dict], simd_a: Optional[dict],
-) -> Dict[str, object]:
+) -> Scoreboard:
     """Compute per-arch wins and an aggregate geometric-mean speed ratio.
 
-    Returns a dict with keys:
-        wins_x, wins_a, ties, total   -- comparison counts
-        geomean_ratio                 -- aarch64/x86_64 speed ratio
-                                         (>1 means aarch64 faster overall)
-        details                       -- list of per-metric (name, x, a)
-                                         tuples where higher is better.
+    All metrics are converted to "higher is better" values before being
+    compared, so a single ``aarch64 / x86_64`` ratio is meaningful
+    across both Python timings and SIMD throughputs.
     """
-    import math
-
     details: List[Tuple[str, float, float]] = []
 
     # Python benchmarks: lower seconds is better → convert to speed (1/t).
@@ -327,17 +332,17 @@ def _compute_scoreboard(
     }
 
 
-def format_scoreboard(sb: Dict[str, object],
+def format_scoreboard(sb: Scoreboard,
                       tests: Dict[str, Tuple[str, Optional[str]]]) -> List[str]:
     lines: List[str] = []
     lines.append("### 🏆 At-a-glance scoreboard")
     lines.append("")
 
-    wins_x = int(sb["wins_x"])  # type: ignore[arg-type]
-    wins_a = int(sb["wins_a"])  # type: ignore[arg-type]
-    ties = int(sb["ties"])      # type: ignore[arg-type]
-    total = int(sb["total"])    # type: ignore[arg-type]
-    geom = float(sb["geomean_ratio"])  # type: ignore[arg-type]
+    wins_x = sb["wins_x"]
+    wins_a = sb["wins_a"]
+    ties = sb["ties"]
+    total = sb["total"]
+    geom = sb["geomean_ratio"]
 
     if total == 0:
         lines.append("_Not enough paired results to compute a scoreboard._")
