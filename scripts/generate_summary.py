@@ -243,13 +243,159 @@ def build_summary(results_root: str) -> str:
         "`ubuntu-24.04-arm` (aarch64) GitHub-hosted runners."
     )
     lines.append("")
+    scoreboard = _compute_scoreboard(
+        py.get("x86_64", {}), py.get("aarch64", {}),
+        simd.get("x86_64"), simd.get("aarch64"),
+    )
+    lines.extend(format_scoreboard(scoreboard, tests))
     lines.extend(format_tests_section(tests))
     lines.extend(format_python_table(py.get("x86_64", {}), py.get("aarch64", {})))
     lines.extend(format_simd_table(simd.get("x86_64"), simd.get("aarch64")))
     return "\n".join(lines) + "\n"
 
 
-def build_single_arch_summary(arch: str, arch_dir: str) -> str:
+def _compute_scoreboard(
+    py_x: Dict[str, float], py_a: Dict[str, float],
+    simd_x: Optional[dict], simd_a: Optional[dict],
+) -> Dict[str, object]:
+    """Compute per-arch wins and an aggregate geometric-mean speed ratio.
+
+    Returns a dict with keys:
+        wins_x, wins_a, ties, total   -- comparison counts
+        geomean_ratio                 -- aarch64/x86_64 speed ratio
+                                         (>1 means aarch64 faster overall)
+        details                       -- list of per-metric (name, x, a)
+                                         tuples where higher is better.
+    """
+    import math
+
+    details: List[Tuple[str, float, float]] = []
+
+    # Python benchmarks: lower seconds is better → convert to speed (1/t).
+    for bm in sorted(set(list(py_x.keys()) + list(py_a.keys()))):
+        x = py_x.get(bm)
+        a = py_a.get(bm)
+        if x and a and x > 0 and a > 0:
+            details.append((f"py:{bm}", 1.0 / x, 1.0 / a))
+
+    # SIMD: higher throughput is better → use throughput directly.
+    def _idx(doc: Optional[dict]) -> Dict[Tuple[str, str], float]:
+        if not doc:
+            return {}
+        return {
+            (r["kernel"], r["impl"]): float(r["throughput_gibps"])
+            for r in doc.get("results", [])
+            if r.get("throughput_gibps") is not None
+        }
+
+    xi = _idx(simd_x)
+    ai = _idx(simd_a)
+    kernels = sorted({k for (k, _i) in list(xi.keys()) + list(ai.keys())})
+    for kernel in kernels:
+        for impl_x, impl_a, tag in (
+            ("scalar", "scalar", f"simd-scalar:{kernel}"),
+            ("sse",    "neon",   f"simd-isa:{kernel}"),
+        ):
+            x = xi.get((kernel, impl_x))
+            a = ai.get((kernel, impl_a))
+            if x and a and x > 0 and a > 0:
+                details.append((tag, x, a))
+
+    wins_x = wins_a = ties = 0
+    ratios: List[float] = []
+    for _name, x, a in details:
+        if a > x:
+            wins_a += 1
+        elif x > a:
+            wins_x += 1
+        else:
+            ties += 1
+        ratios.append(a / x)
+
+    if ratios:
+        geom = math.exp(sum(math.log(r) for r in ratios) / len(ratios))
+    else:
+        geom = 1.0
+
+    return {
+        "wins_x": wins_x,
+        "wins_a": wins_a,
+        "ties": ties,
+        "total": len(details),
+        "geomean_ratio": geom,
+        "details": details,
+    }
+
+
+def format_scoreboard(sb: Dict[str, object],
+                      tests: Dict[str, Tuple[str, Optional[str]]]) -> List[str]:
+    lines: List[str] = []
+    lines.append("### 🏆 At-a-glance scoreboard")
+    lines.append("")
+
+    wins_x = int(sb["wins_x"])  # type: ignore[arg-type]
+    wins_a = int(sb["wins_a"])  # type: ignore[arg-type]
+    ties = int(sb["ties"])      # type: ignore[arg-type]
+    total = int(sb["total"])    # type: ignore[arg-type]
+    geom = float(sb["geomean_ratio"])  # type: ignore[arg-type]
+
+    if total == 0:
+        lines.append("_Not enough paired results to compute a scoreboard._")
+        lines.append("")
+        return lines
+
+    if geom > 1.0:
+        headline_arch = "🟠 **aarch64** is faster overall"
+        headline_pct = f"{(geom - 1.0) * 100:.1f}% faster (geomean across {total} metrics)"
+    elif geom < 1.0:
+        headline_arch = "🔵 **x86_64** is faster overall"
+        headline_pct = f"{(1.0 / geom - 1.0) * 100:.1f}% faster (geomean across {total} metrics)"
+    else:
+        headline_arch = "🟰 **Tied** overall"
+        headline_pct = f"across {total} metrics"
+
+    status_icon = {"pass": "🟢", "fail": "🔴", "missing": "⚪"}
+    x_status = status_icon[tests.get("x86_64", ("missing", None))[0]]
+    a_status = status_icon[tests.get("aarch64", ("missing", None))[0]]
+
+    lines.append(f"- **Overall winner:** {headline_arch} — {headline_pct}.")
+    lines.append(
+        f"- **Wins:** 🔵 x86_64 {wins_x} · 🟠 aarch64 {wins_a} · 🟰 ties {ties} "
+        f"(out of {total} paired metrics)."
+    )
+    lines.append(
+        f"- **C++ SIMD tests:** 🔵 x86_64 {x_status} · 🟠 aarch64 {a_status}."
+    )
+    lines.append("")
+    lines.append("| | 🔵 x86_64 (SSE) | 🟠 aarch64 (NEON) |")
+    lines.append("|---|---|---|")
+    lines.append(
+        f"| Wins across paired metrics | **{wins_x}** | **{wins_a}** |"
+    )
+    lines.append(
+        f"| C++ SIMD correctness tests | {x_status} | {a_status} |"
+    )
+    if geom > 1.0:
+        lines.append(
+            f"| Overall speed (geomean) | 1.00× | **{geom:.2f}×** |"
+        )
+    elif geom < 1.0:
+        lines.append(
+            f"| Overall speed (geomean) | **{1.0 / geom:.2f}×** | 1.00× |"
+        )
+    else:
+        lines.append("| Overall speed (geomean) | 1.00× | 1.00× |")
+    lines.append("")
+    lines.append(
+        "> Speed ratios use `1/elapsed` for Python timings and raw "
+        "throughput for SIMD kernels, aggregated with a geometric mean. "
+        "Detailed per-benchmark tables follow below."
+    )
+    lines.append("")
+    return lines
+
+
+
     """Build a focused Markdown summary for one architecture."""
     isa = {"x86_64": "SSE", "aarch64": "NEON"}.get(arch, "scalar")
     emoji = {"x86_64": "🔵", "aarch64": "🟠"}.get(arch, "⚪")

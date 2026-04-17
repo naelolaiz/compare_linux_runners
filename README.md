@@ -28,10 +28,16 @@ the job page. A final **🏁 Integrated Summary (x86_64 vs aarch64)** job
 then downloads the artifacts from both matrix jobs and renders one
 unified side-by-side summary containing:
 
-1. C++ SIMD correctness test status per architecture,
-2. the Python CPU benchmark comparison table,
-3. a scalar x86_64 vs aarch64 C++ throughput table,
-4. an SSE vs NEON C++ throughput table.
+1. an **🏆 At-a-glance scoreboard** (overall winner, per-arch wins, geomean speed ratio),
+2. C++ SIMD correctness test status per architecture,
+3. the Python CPU benchmark comparison table,
+4. a scalar x86_64 vs aarch64 C++ throughput table,
+5. an SSE vs NEON C++ throughput table.
+
+On pull requests, the integrated summary is also **posted (and updated
+in place) as a PR comment** so the cross-architecture comparison shows
+up right on the PR conversation — no need to click through to the
+Actions tab.
 
 Open any run of the `all-tests` workflow and you can either scroll to
 any matrix job to see the results for that architecture, or open the
