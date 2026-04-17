@@ -18,19 +18,30 @@ on GitHub Actions — ARM (`aarch64`) vs Intel (`x86_64`), SSE vs NEON, etc.
 
 ### Integrated workflow — `all-tests`
 
-The [`all-tests`](.github/workflows/all_tests.yml) workflow **orchestrates
-both suites in a single pipeline** and emits one unified Markdown summary
-containing:
+The [`all-tests`](.github/workflows/all_tests.yml) workflow is the
+**single, orchestrated pipeline** that runs every suite in this
+repository. Each matrix job (`All tests — x86_64 (Python + SSE)` and
+`All tests — aarch64 (Python + NEON)`) executes **both** the Python CPU
+benchmarks and the C++ SIMD build / correctness tests / micro-benchmarks
+on its architecture, and emits its own focused Markdown summary right on
+the job page. A final **🏁 Integrated Summary (x86_64 vs aarch64)** job
+then downloads the artifacts from both matrix jobs and renders one
+unified side-by-side summary containing:
 
-1. C++ SIMD correctness test status per architecture,
-2. the Python CPU benchmark comparison table,
-3. a scalar x86_64 vs aarch64 C++ throughput table,
-4. an SSE vs NEON C++ throughput table.
+1. an **🏆 At-a-glance scoreboard** (overall winner, per-arch wins, geomean speed ratio),
+2. C++ SIMD correctness test status per architecture,
+3. the Python CPU benchmark comparison table,
+4. a scalar x86_64 vs aarch64 C++ throughput table,
+5. an SSE vs NEON C++ throughput table.
 
-Open any run of the `all-tests` workflow and scroll to the **Integrated
-Summary** job — every result for every suite is rendered there side by
-side. The standalone `ARM vs Intel Benchmark` and `simd-compare`
-workflows are kept for lightweight per-area CI.
+On pull requests, the integrated summary is also **posted (and updated
+in place) as a PR comment** so the cross-architecture comparison shows
+up right on the PR conversation — no need to click through to the
+Actions tab.
+
+Open any run of the `all-tests` workflow and you can either scroll to
+any matrix job to see the results for that architecture, or open the
+**🏁 Integrated Summary** job to see every suite rendered side by side.
 
 ---
 
@@ -66,16 +77,16 @@ Results are printed to stdout and also saved to `benchmark_results_<arch>.json`.
 
 ### How to trigger the workflow
 
-1. Push a commit to `main`, open a pull request targeting `main`, or navigate to **Actions → ARM vs Intel Benchmark → Run workflow**.
-2. The `benchmark` job runs in parallel on both `ubuntu-24.04` (x86_64) and `ubuntu-24.04-arm` (aarch64).
-3. Each job uploads a `benchmark_results_<arch>.json` artifact.
-4. The `summary` job downloads both artifacts and writes a Markdown comparison table to the **job summary**.
+1. Push a commit to `main`, open a pull request targeting `main`, or navigate to **Actions → all-tests → Run workflow**.
+2. The matrix runs in parallel on both `ubuntu-24.04` (x86_64) and `ubuntu-24.04-arm` (aarch64), each executing the Python and C++ SIMD suites.
+3. Each matrix job uploads an `all-results-<arch>` artifact and renders a per-architecture Markdown summary on its own job page.
+4. The **🏁 Integrated Summary** job downloads both artifacts and writes the unified comparison tables to its job summary.
 
 #### Viewing results
 
 - Open the workflow run on GitHub.
-- Click the **Comparison Summary** job.
-- Scroll down to the **job summary** pane to see the side-by-side table.
+- Click any matrix job (e.g. **All tests — x86_64 (Python + SSE)**) to see the per-architecture summary, or
+- click the **🏁 Integrated Summary (x86_64 vs aarch64)** job to see the side-by-side comparison.
 - Raw JSON artifacts are available under **Artifacts** at the bottom of the run page.
 
 ### ARM runners are free on public repos
