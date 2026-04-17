@@ -391,6 +391,53 @@ def format_scoreboard(sb: Scoreboard,
     else:
         lines.append("| Overall speed (geomean) | 1.00× | 1.00× |")
     lines.append("")
+
+    # Per-test winner breakdown — surfaces the winner of every individual
+    # benchmark right next to the aggregate scoreboard so readers can see
+    # at a glance which processor wins which test, without scrolling
+    # through the detailed tables below.
+    details = sb["details"]
+    if details:
+        lines.append("#### 🥇 Per-test winners")
+        lines.append("")
+        lines.append("| Test | Metric | 🔵 x86_64 | 🟠 aarch64 | Winner |")
+        lines.append("|------|--------|-----------|------------|--------|")
+        for tag, x_val, a_val in details:
+            kind, _, name = tag.partition(":")
+            if kind == "py":
+                # Stored as 1/seconds; render the original elapsed time.
+                x_disp = f"{1.0 / x_val:.4f} s"
+                a_disp = f"{1.0 / a_val:.4f} s"
+                metric = "elapsed (lower better)"
+                test_name = f"py · {name}"
+            elif kind == "simd-scalar":
+                x_disp = f"{x_val:.2f} GiB/s"
+                a_disp = f"{a_val:.2f} GiB/s"
+                metric = "scalar throughput"
+                test_name = f"simd · {name}"
+            elif kind == "simd-isa":
+                x_disp = f"{x_val:.2f} GiB/s"
+                a_disp = f"{a_val:.2f} GiB/s"
+                metric = "SSE vs NEON throughput"
+                test_name = f"simd · {name}"
+            else:
+                x_disp = f"{x_val:.4f}"
+                a_disp = f"{a_val:.4f}"
+                metric = ""
+                test_name = name or tag
+            if a_val > x_val:
+                pct = (a_val / x_val - 1.0) * 100
+                winner = f"🟠 aarch64 (+{pct:.1f}%)"
+            elif x_val > a_val:
+                pct = (x_val / a_val - 1.0) * 100
+                winner = f"🔵 x86_64 (+{pct:.1f}%)"
+            else:
+                winner = "🟰 tie"
+            lines.append(
+                f"| {test_name} | {metric} | {x_disp} | {a_disp} | {winner} |"
+            )
+        lines.append("")
+
     lines.append(
         "> Speed ratios use `1/elapsed` for Python timings and raw "
         "throughput for SIMD kernels, aggregated with a geometric mean. "
