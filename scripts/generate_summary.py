@@ -400,7 +400,7 @@ def format_scoreboard(sb: Scoreboard,
     return lines
 
 
-
+def build_single_arch_summary(arch: str, arch_dir: str) -> str:
     """Build a focused Markdown summary for one architecture."""
     isa = {"x86_64": "SSE", "aarch64": "NEON"}.get(arch, "scalar")
     emoji = {"x86_64": "🔵", "aarch64": "🟠"}.get(arch, "⚪")
