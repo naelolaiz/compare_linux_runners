@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   run:
-    name: ${{ matrix.arch_label }} (${{ matrix.isa }})
+    name: All tests — ${{ matrix.arch_label }} (Python + ${{ matrix.isa }})
     runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
@@ -76,6 +76,7 @@ jobs:
       # Collect everything into a single artifact per architecture.
       # -----------------------------------------------------------------
       - name: Collect results
+        if: always()
         run: |
           mkdir -p artifact
           cp benchmark_results_*.json artifact/ 2>/dev/null || true
@@ -83,14 +84,23 @@ jobs:
           cp simd_tests_${{ matrix.arch_label }}.log  artifact/ 2>/dev/null || true
           ls -l artifact
 
+      - name: Emit per-architecture summary
+        if: always()
+        run: |
+          python3 scripts/generate_summary.py \
+            --single-arch ${{ matrix.arch_label }} \
+            artifact \
+            "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
+
       - name: Upload results artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: all-results-${{ matrix.arch_label }}
           path: artifact/
 
   summary:
-    name: Integrated Summary
+    name: 🏁 Integrated Summary (x86_64 vs aarch64)
     needs: run
     runs-on: ubuntu-latest
     if: always()

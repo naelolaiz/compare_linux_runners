@@ -75,10 +75,14 @@ RGB is awkward for the auto-vectorizer.
 
 ## CI
 
-The `.github/workflows/simd.yml` workflow builds, tests, and benchmarks
-the project on two GitHub-hosted Linux runners:
+The [`.github/workflows/all_tests.yml`](../.github/workflows/all_tests.yml)
+workflow builds, tests, and benchmarks the project on two GitHub-hosted
+Linux runners:
 
-- `ubuntu-latest`      → **x86_64** → SSE path
+- `ubuntu-24.04`       → **x86_64** → SSE path
 - `ubuntu-24.04-arm`   → **aarch64** → NEON path
 
-giving a direct side-by-side comparison of SSE vs NEON on real hardware.
+giving a direct side-by-side comparison of SSE vs NEON on real hardware,
+alongside the Python CPU benchmarks. A per-architecture Markdown summary
+is emitted on each matrix job page, and a unified cross-architecture
+summary is produced by the **🏁 Integrated Summary** job.

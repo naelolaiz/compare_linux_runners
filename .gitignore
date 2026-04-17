@@ -8,3 +8,5 @@ benchmark_results_*.json
 # simd_bench JSON results and ctest logs written via --json / tee in CI
 simd_bench_*.json
 simd_tests_*.log
+scripts/__pycache__/
+__pycache__/

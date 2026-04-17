@@ -7,11 +7,17 @@ the `all-tests` workflow into a single pretty job-summary page.
 
 Usage:
     generate_summary.py <results_root> <output_file>
+    generate_summary.py --single-arch <arch> <arch_dir> <output_file>
 
-`<results_root>` is expected to contain one sub-directory per
-architecture (e.g. `x86_64/`, `aarch64/`), each holding the JSON and log
-files produced by a single matrix run. Missing directories or files are
-handled gracefully so the summary can still be emitted if one arch fails.
+In the default (aggregated) mode, `<results_root>` is expected to
+contain one sub-directory per architecture (e.g. `x86_64/`, `aarch64/`),
+each holding the JSON and log files produced by a single matrix run.
+Missing directories or files are handled gracefully so the summary can
+still be emitted if one arch fails.
+
+In `--single-arch` mode, a focused summary is emitted for a single
+architecture (`<arch>`) using the files directly inside `<arch_dir>`.
+This is meant to be rendered on the per-matrix-job summary page.
 """
 
 from __future__ import annotations
@@ -243,12 +249,115 @@ def build_summary(results_root: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def build_single_arch_summary(arch: str, arch_dir: str) -> str:
+    """Build a focused Markdown summary for one architecture."""
+    isa = {"x86_64": "SSE", "aarch64": "NEON"}.get(arch, "scalar")
+    emoji = {"x86_64": "🔵", "aarch64": "🟠"}.get(arch, "⚪")
+    py = load_python_results(arch_dir) if os.path.isdir(arch_dir) else {}
+    simd = load_simd_results(arch_dir) if os.path.isdir(arch_dir) else None
+    status, snippet = (
+        load_tests_status(arch_dir) if os.path.isdir(arch_dir) else ("missing", None)
+    )
+
+    lines: List[str] = []
+    lines.append(f"## {emoji} All tests — {arch} (Python + {isa})")
+    lines.append("")
+    lines.append(
+        f"Results from the Python CPU benchmarks and the C++ SIMD "
+        f"build / test / micro-benchmark suites on this `{arch}` runner."
+    )
+    lines.append("")
+
+    # ---- C++ SIMD correctness tests -----------------------------------
+    icon = {"pass": "🟢 passed", "fail": "🔴 failed", "missing": "⚪ not run"}
+    lines.append("### ✅ C++ SIMD correctness tests")
+    lines.append("")
+    lines.append(f"**Status:** {icon[status]}")
+    lines.append("")
+    if status == "fail" and snippet:
+        lines.append("<details><summary>Failure log (tail)</summary>")
+        lines.append("")
+        lines.append("```")
+        lines.append(snippet)
+        lines.append("```")
+        lines.append("</details>")
+        lines.append("")
+
+    # ---- Python benchmarks --------------------------------------------
+    lines.append("### 🐍 Python CPU benchmarks")
+    lines.append("")
+    if not py:
+        lines.append("_No Python benchmark results were produced._")
+        lines.append("")
+    else:
+        lines.append("| Benchmark | Elapsed (s) |")
+        lines.append("|-----------|-------------|")
+        for bm in sorted(py):
+            lines.append(f"| {bm} | {py[bm]:.4f} |")
+        lines.append("")
+        lines.append("> Timing measured with `time.perf_counter()`. Lower is better.")
+        lines.append("")
+
+    # ---- SIMD micro-benchmarks ----------------------------------------
+    lines.append(f"### ⚡ C++ SIMD micro-benchmarks ({isa})")
+    lines.append("")
+    if not simd:
+        lines.append("_No SIMD benchmark results were produced._")
+        lines.append("")
+    else:
+        best = simd.get("best_impl")
+        if best:
+            lines.append(f"- **Best implementation:** `{best}`")
+            lines.append("")
+        results = simd.get("results", [])
+        kernels = sorted({r["kernel"] for r in results})
+        impls = sorted({r["impl"] for r in results})
+        index = {(r["kernel"], r["impl"]): r for r in results}
+        if kernels and impls:
+            header = "| Kernel | " + " | ".join(f"{i} GiB/s" for i in impls) + " |"
+            sep = "|--------|" + "|".join(["------"] * len(impls)) + "|"
+            lines.append(header)
+            lines.append(sep)
+            for kernel in kernels:
+                row = [kernel]
+                for impl in impls:
+                    r = index.get((kernel, impl))
+                    row.append(f"{r['throughput_gibps']:.2f}" if r else "N/A")
+                lines.append("| " + " | ".join(row) + " |")
+            lines.append("")
+            lines.append(
+                "> Throughput measured over read+write bytes. Higher is better."
+            )
+            lines.append("")
+
+    lines.append(
+        "> The cross-architecture comparison is available on the "
+        "**🏁 Integrated Summary** job of this workflow run."
+    )
+    return "\n".join(lines) + "\n"
+
+
 def main(argv: List[str]) -> int:
-    if len(argv) != 3:
-        print(f"usage: {argv[0]} <results_root> <output_file>", file=sys.stderr)
-        return 2
-    results_root, output_file = argv[1], argv[2]
-    summary = build_summary(results_root)
+    if len(argv) >= 2 and argv[1] == "--single-arch":
+        if len(argv) != 5:
+            print(
+                f"usage: {argv[0]} --single-arch <arch> <arch_dir> <output_file>",
+                file=sys.stderr,
+            )
+            return 2
+        arch, arch_dir, output_file = argv[2], argv[3], argv[4]
+        summary = build_single_arch_summary(arch, arch_dir)
+    else:
+        if len(argv) != 3:
+            print(
+                f"usage: {argv[0]} <results_root> <output_file>\n"
+                f"       {argv[0]} --single-arch <arch> <arch_dir> <output_file>",
+                file=sys.stderr,
+            )
+            return 2
+        results_root, output_file = argv[1], argv[2]
+        summary = build_summary(results_root)
+
     # Print to stdout and also append to the chosen output file.
     print(summary)
     try:
