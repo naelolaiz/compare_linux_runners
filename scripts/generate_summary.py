@@ -253,10 +253,11 @@ def build_single_arch_summary(arch: str, arch_dir: str) -> str:
     """Build a focused Markdown summary for one architecture."""
     isa = {"x86_64": "SSE", "aarch64": "NEON"}.get(arch, "scalar")
     emoji = {"x86_64": "🔵", "aarch64": "🟠"}.get(arch, "⚪")
-    py = load_python_results(arch_dir) if os.path.isdir(arch_dir) else {}
-    simd = load_simd_results(arch_dir) if os.path.isdir(arch_dir) else None
+    have_dir = os.path.isdir(arch_dir)
+    py = load_python_results(arch_dir) if have_dir else {}
+    simd = load_simd_results(arch_dir) if have_dir else None
     status, snippet = (
-        load_tests_status(arch_dir) if os.path.isdir(arch_dir) else ("missing", None)
+        load_tests_status(arch_dir) if have_dir else ("missing", None)
     )
 
     lines: List[str] = []
